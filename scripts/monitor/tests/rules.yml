@@ -1,0 +1,187 @@
+{
+  "rule_files": [
+    "../prometheus/rules/collection.yml",
+    "../prometheus/rules/cache-state.yml"
+  ],
+  "evaluation_interval": "1m",
+  "tests": [
+    {
+      "name": "removed target remains independently expected",
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "dingofs_expected_target_info{cluster=\"test\",component=\"mds\",node=\"m1\",target=\"host:7801\"}",
+          "values": "1+0x5"
+        }
+      ],
+      "promql_expr_test": [
+        {
+          "expr": "dingofs:expected_target_missing",
+          "eval_time": "3m",
+          "exp_samples": [
+            {
+              "labels": "dingofs:expected_target_missing{cluster=\"test\",component=\"mds\",node=\"m1\",target=\"host:7801\"}",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "down target does not disappear",
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "dingofs_expected_target_info{cluster=\"test\",component=\"mds\",node=\"m1\",target=\"host:7801\"}",
+          "values": "1+0x5"
+        },
+        {
+          "series": "up{cluster=\"test\",component=\"mds\",node=\"m1\",instance=\"host:7801\",job=\"mds\"}",
+          "values": "0+0x5"
+        }
+      ],
+      "promql_expr_test": [
+        {
+          "expr": "dingofs:expected_target_missing",
+          "eval_time": "3m",
+          "exp_samples": []
+        }
+      ],
+      "alert_rule_test": [
+        {
+          "eval_time": "3m",
+          "alertname": "DingoFSTargetDown",
+          "exp_alerts": [
+            {
+              "exp_labels": {
+                "cluster": "test",
+                "component": "mds",
+                "node": "m1",
+                "instance": "host:7801",
+                "job": "mds",
+                "severity": "warning",
+                "category": "collection"
+              },
+              "exp_annotations": {
+                "summary": "DingoFS scrape target host:7801 is unreachable",
+                "description": "Check the process, advertised port and network before interpreting missing business data. Silence this target during approved maintenance."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "absent source is not zero",
+      "interval": "1m",
+      "input_series": [],
+      "promql_expr_test": [
+        {
+          "expr": "up{job=\"client\"} == 0",
+          "eval_time": "3m",
+          "exp_samples": []
+        }
+      ]
+    },
+    {
+      "name": "cache health unknown when scrape fails",
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "dingofs_disk_cache_0_health_code{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\"}",
+          "values": "0 0 stale _ _ _"
+        },
+        {
+          "series": "dingofs_disk_cache_0_running_code{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\"}",
+          "values": "1 1 stale _ _ _"
+        },
+        {
+          "series": "up{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\"}",
+          "values": "1 1 0+0x3"
+        }
+      ],
+      "promql_expr_test": [
+        {
+          "expr": "dingofs_cache_health_state{state=\"normal\"}",
+          "eval_time": "1m",
+          "exp_samples": [
+            {
+              "labels": "dingofs_cache_health_state{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\",disk=\"0\",state=\"normal\"}",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "expr": "dingofs_cache_health_state{state=\"unknown\"}",
+          "eval_time": "3m",
+          "exp_samples": [
+            {
+              "labels": "dingofs_cache_health_state{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\",disk=\"0\",state=\"unknown\"}",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "expr": "sum without (state) (dingofs_cache_health_state)",
+          "eval_time": "3m",
+          "exp_samples": [
+            {
+              "labels": "{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\",disk=\"0\"}",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "missing health fields with reachable process are unknown",
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "dingofs_disk_cache_0_health_code{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\"}",
+          "values": "0 0 stale _ _ _"
+        },
+        {
+          "series": "dingofs_disk_cache_0_running_code{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\"}",
+          "values": "1 1 stale _ _ _"
+        },
+        {
+          "series": "up{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\"}",
+          "values": "1+0x5"
+        }
+      ],
+      "promql_expr_test": [
+        {
+          "expr": "dingofs_cache_health_state{state=\"normal\"}",
+          "eval_time": "1m",
+          "exp_samples": [
+            {
+              "labels": "dingofs_cache_health_state{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\",disk=\"0\",state=\"normal\"}",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "expr": "dingofs_cache_health_state{state=\"unknown\"}",
+          "eval_time": "3m",
+          "exp_samples": [
+            {
+              "labels": "dingofs_cache_health_state{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\",disk=\"0\",state=\"unknown\"}",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "expr": "sum without (state) (dingofs_cache_health_state)",
+          "eval_time": "3m",
+          "exp_samples": [
+            {
+              "labels": "{cluster=\"test\",component=\"cache\",node=\"c1\",instance=\"cache:9300\",job=\"remotecache\",disk=\"0\"}",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

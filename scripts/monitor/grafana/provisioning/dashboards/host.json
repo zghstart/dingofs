@@ -1,0 +1,427 @@
+{
+  "uid": "dingofs-p0-host",
+  "title": "DingoFS / Host and Runtime",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": [
+    "dingofs",
+    "observability",
+    "P0"
+  ],
+  "editable": true,
+  "refresh": "15s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "DingoFS Prometheus",
+          "value": "dingofs-prometheus"
+        }
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
+        "query": "label_values(up, cluster)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
+        "query": "label_values(up{cluster=~\"$cluster\"}, instance)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "node",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
+        "query": "label_values(up{cluster=~\"$cluster\"}, node)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "P0 source and interpretation",
+      "options": {
+        "mode": "markdown",
+        "content": "**P0 / existing sources.** N/A means missing data or no traffic denominator. Scrape reachability is collection health. Quotas are per-instance snapshots. Cluster p99, business SLI and measured Data Flow require P1."
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "id": 1
+    },
+    {
+      "title": "Host CPU utilization",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "1 - avg by (cluster, node) (rate(node_cpu_seconds_total{cluster=~\"$cluster\",node=~\"$node\",mode=\"idle\"}[$__rate_interval]))",
+          "refId": "A",
+          "legendFormat": "{{node}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "Host available memory",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "node_memory_MemAvailable_bytes{cluster=~\"$cluster\",node=~\"$node\"}",
+          "refId": "A",
+          "legendFormat": "{{node}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "Process resident memory",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "process_memory_resident{cluster=~\"$cluster\",instance=~\"$instance\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "Process CPU cores",
+      "type": "timeseries",
+      "description": "CPU usage in cores, not percent of host capacity.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "process_cpu_usage{cluster=~\"$cluster\",instance=~\"$instance\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "bthread worker utilization",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "bthread_worker_usage{cluster=~\"$cluster\",instance=~\"$instance\"} / bthread_worker_count{cluster=~\"$cluster\",instance=~\"$instance\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "Scrape duration",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "scrape_duration_seconds{cluster=~\"$cluster\",instance=~\"$instance\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 22,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "Scraped samples",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "scrape_samples_scraped{cluster=~\"$cluster\",instance=~\"$instance\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 8,
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "Node scrape coverage",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "up{cluster=~\"$cluster\",instance=~\"$instance\",job=\"dingofs-node\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bool",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 9,
+      "gridPos": {
+        "x": 12,
+        "y": 31,
+        "w": 12,
+        "h": 9
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "Overview",
+      "type": "link",
+      "url": "/d/dingofs-p0-overview",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Client",
+      "type": "link",
+      "url": "/d/dingofs-p0-client",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "MDS",
+      "type": "link",
+      "url": "/d/dingofs-p0-mds",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Cache",
+      "type": "link",
+      "url": "/d/dingofs-p0-cache",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Store",
+      "type": "link",
+      "url": "/d/dingofs-p0-store",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Capacity",
+      "type": "link",
+      "url": "/d/dingofs-p0-capacity",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Host",
+      "type": "link",
+      "url": "/d/dingofs-p0-host",
+      "includeVars": true,
+      "keepTime": true
+    }
+  ]
+}

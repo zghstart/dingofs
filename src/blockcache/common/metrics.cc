@@ -104,6 +104,31 @@ void Health(std::ostream& os, void* arg) {
   }
 }
 
+// Numeric companions keep the legacy string /vars interface intact while
+// making health usable by the existing /brpc_metrics exporter.
+int64_t HealthCode(void* arg) {
+  switch (WorstHealth(*static_cast<DiskSlots*>(arg))) {
+    case DiskHealth::kNormal:
+      return 0;
+    case DiskHealth::kUnstable:
+      return 1;
+    case DiskHealth::kDown:
+      return 2;
+  }
+  return -1;
+}
+
+int64_t RunningCode(void* arg) {
+  if (HealthCode(arg) < 0) {
+    return -1;
+  }
+  const auto& slots = *static_cast<DiskSlots*>(arg);
+  return WorstHealth(slots) == DiskHealth::kNormal &&
+         std::all_of(slots.begin(), slots.end(), [](const DiskCacheVars* vars) {
+           return vars->running.Get() != 0;
+         });
+}
+
 void Dir(std::ostream& os, void* arg) {
   os << static_cast<DiskSlots*>(arg)->front()->dir;
 }
@@ -141,6 +166,8 @@ void ExposeDisk(DiskSlots* slots) {
   Expose(prefix + "_cache_full", &Any<&DiskCacheVars::cache_full>, slots);
   Expose(prefix + "_running_status", &Running, slots);
   Expose(prefix + "_healthy_status", &Health, slots);
+  Expose(prefix + "_health_code", &HealthCode, slots);
+  Expose(prefix + "_running_code", &RunningCode, slots);
   Expose(prefix + "_dir", &Dir, slots);
   Expose(prefix + "_uuid", &Uuid, slots);
 }

@@ -47,6 +47,10 @@ struct MetricGuard {
     }
   }
 
+  // Reads only know their returned byte count after the backend completes.
+  // Failed operations still contribute no successful bytes.
+  void SetCount(size_t count) { count_ = count; }
+
  private:
   bool IsOk() const {
     if constexpr (std::is_same_v<T, Status>) {

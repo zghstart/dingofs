@@ -1,0 +1,63 @@
+groups:
+  - name: dingofs-collection
+    interval: 15s
+    rules:
+      - record: dingofs:expected_target_missing
+        expr: |
+          max by (cluster, component, node, target) (dingofs_expected_target_info)
+          unless on (cluster, component, target)
+          label_replace(up{job=~"client|mds|remotecache"}, "target", "$1", "instance", "(.+)")
+      - alert: DingoFSTargetDown
+        expr: up{job=~"client|mds|remotecache|dingofs-node"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: collection
+        annotations:
+          summary: 'DingoFS scrape target {{ $labels.instance }} is unreachable'
+          description: 'Check the process, advertised port and network before interpreting missing business data. Silence this target during approved maintenance.'
+      - alert: DingoFSExpectedTargetMissing
+        expr: dingofs:expected_target_missing == 1
+        for: 2m
+        labels:
+          severity: warning
+          category: collection
+        annotations:
+          summary: 'Expected target {{ $labels.target }} disappeared from discovery'
+          description: 'Compare operator inventory with discovery results. Explicitly remove retired targets from expected inventory; silence approved maintenance.'
+      - alert: DingoFSDiscoveryFailed
+        expr: dingofs_discovery_success == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: collection
+        annotations:
+          summary: 'DingoFS {{ $labels.component }} discovery failed'
+          description: 'Last successful targets are retained for the configured retention period. Check bounded discovery error reasons and command connectivity.'
+      - alert: DingoFSDiscoveryStale
+        expr: time() - dingofs_discovery_last_success_timestamp_seconds > 180
+        for: 2m
+        labels:
+          severity: warning
+          category: collection
+        annotations:
+          summary: 'DingoFS {{ $labels.component }} discovery has no recent success'
+          description: 'Default freshness limit is 180 seconds for a 60-second discovery interval; review it when changing the interval.'
+      - alert: DingoFSDiscoveryWriteFailed
+        expr: dingofs_discovery_write_success == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: collection
+        annotations:
+          summary: 'DingoFS discovery cannot publish targets'
+          description: 'Check the discovery state/target directory permissions and free space.'
+      - alert: DingoFSDiscoveryDown
+        expr: up{job="dingofs-discovery"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: collection
+        annotations:
+          summary: 'DingoFS discovery self-monitoring is unreachable'
+          description: 'Check monitor_sync and its configured metrics listener.'

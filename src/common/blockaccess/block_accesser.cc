@@ -193,7 +193,7 @@ Status BlockAccesserImpl::Get(const std::string& key, std::string* data) {
     return fmt::format("get_block ({}) : {}", key, PrettyBool(s.ok()));
   });
   // read block metrics
-  MetricGuard<Status> guard(&s, &g_block_metric.read_block, data->length(),
+  MetricGuard<Status> guard(&s, &g_block_metric.read_block, 0,
                             butil::cpuwide_time_us());
 
   block_get_sync_num << 1;
@@ -204,6 +204,7 @@ Status BlockAccesserImpl::Get(const std::string& key, std::string* data) {
   }
 
   s = data_accesser_->Get(key, data);
+  guard.SetCount(data->size());
   return s;
 }
 
@@ -226,7 +227,7 @@ void BlockAccesserImpl::AsyncGet(
                                length, attempt_status.ToString());
           });
       MetricGuard<Status> guard(&attempt_status, &g_block_metric.read_block,
-                                length, start_us);
+                                ctx->actual_len, start_us);
 
       block_get_async_num << -1;
       inflight_bytes_throttle_->OnComplete(length);

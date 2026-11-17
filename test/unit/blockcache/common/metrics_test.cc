@@ -82,6 +82,8 @@ class MetricsTest : public ::testing::Test {
     EXPECT_EQ(Describe("dingofs_disk_cache_0_stage_full"), "0");
     EXPECT_EQ(Describe("dingofs_disk_cache_0_running_status"), "up");
     EXPECT_EQ(Describe("dingofs_disk_cache_0_healthy_status"), "normal");
+    EXPECT_EQ(Describe("dingofs_disk_cache_0_health_code"), "0");
+    EXPECT_EQ(Describe("dingofs_disk_cache_0_running_code"), "1");
     EXPECT_EQ(Describe("dingofs_disk_cache_0_dir"), "/cache");
     EXPECT_EQ(Describe("dingofs_disk_cache_0_uuid"), "uuid-0");
     EXPECT_TRUE(Describe("dingofs_disk_cache_1_capacity").empty());
@@ -95,6 +97,23 @@ class MetricsTest : public ::testing::Test {
     EXPECT_TRUE(snapshot[0].cache_full);
     EXPECT_FALSE(snapshot[0].stage_full);
     EXPECT_TRUE(snapshot[0].running);
+
+    RunOnAllAndWait([&](unsigned shard) -> Future<> {
+      if (shard == 1) {
+        disks[shard]->health = static_cast<uint64_t>(DiskHealth::kUnstable);
+      }
+      return MakeReadyFuture<>();
+    });
+    EXPECT_EQ(Describe("dingofs_disk_cache_0_health_code"), "1");
+    EXPECT_EQ(Describe("dingofs_disk_cache_0_running_code"), "0");
+    RunOnAllAndWait([&](unsigned shard) -> Future<> {
+      if (shard == 1) {
+        disks[shard]->health = 255;
+      }
+      return MakeReadyFuture<>();
+    });
+    EXPECT_EQ(Describe("dingofs_disk_cache_0_health_code"), "-1");
+    EXPECT_EQ(Describe("dingofs_disk_cache_0_running_code"), "-1");
 
     HideMetrics();
     EXPECT_TRUE(Describe("dingofs_disk_cache_group_load_total_bytes").empty());

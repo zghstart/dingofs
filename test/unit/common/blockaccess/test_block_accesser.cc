@@ -33,6 +33,7 @@
 #include "common/blockaccess/s3/aws/aws_s3_common.h"
 #include "common/blockaccess/s3/s3_accesser.h"
 #include "common/io_buffer.h"
+#include "common/metrics/blockaccess/block_accesser.h"
 #include "common/status.h"
 
 namespace dingofs {
@@ -68,6 +69,56 @@ class BlockAccesserImplTest : public ::testing::Test {
   std::string root_;
   std::unique_ptr<BlockAccesserImpl> accesser_;
 };
+
+TEST_F(BlockAccesserImplTest, SyncGetCountsReturnedBytes) {
+  const std::string payload = "known payload";
+  ASSERT_TRUE(accesser_->Put("get_bytes", PutPayload::Build(
+      {{payload.data(), payload.size()}})).ok());
+  auto& metric = metrics::blockaccess::BlockMetric::GetInstance().read_block;
+  for (const auto& initial : {std::string(), std::string(128, 'x')}) {
+    std::string data = initial;
+    const auto bytes = metric.bps.count.get_value();
+    const auto requests = metric.qps.count.get_value();
+    ASSERT_TRUE(accesser_->Get("get_bytes", &data).ok());
+    EXPECT_EQ(data, payload);
+    EXPECT_EQ(metric.bps.count.get_value() - bytes, payload.size());
+    EXPECT_EQ(metric.qps.count.get_value() - requests, 1);
+  }
+  std::string data(128, 'x');
+  const auto bytes = metric.bps.count.get_value();
+  const auto errors = metric.eps.count.get_value();
+  EXPECT_FALSE(accesser_->Get("not_present", &data).ok());
+  EXPECT_EQ(metric.bps.count.get_value(), bytes);
+  EXPECT_EQ(metric.eps.count.get_value() - errors, 1);
+}
+
+TEST_F(BlockAccesserImplTest, AsyncGetCountsShortReadBytesBeforeCallback) {
+  const std::string payload = "short";
+  ASSERT_TRUE(accesser_->Put("short_get", PutPayload::Build(
+      {{payload.data(), payload.size()}})).ok());
+  auto& metric = metrics::blockaccess::BlockMetric::GetInstance().read_block;
+  const auto bytes = metric.bps.count.get_value();
+  std::vector<char> buffer(128);
+  auto ctx = std::make_shared<GetObjectAsyncContext>("short_get");
+  ctx->offset = 0;
+  ctx->len = buffer.size();
+  ctx->buf = buffer.data();
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool complete = false;
+  ctx->cb = [&](const GetObjectAsyncContextSPtr& result) {
+    std::lock_guard<std::mutex> lock(mutex);
+    EXPECT_TRUE(result->status.ok());
+    EXPECT_EQ(result->actual_len, payload.size());
+    EXPECT_EQ(metric.bps.count.get_value() - bytes, payload.size());
+    complete = true;
+    cv.notify_one();
+  };
+  accesser_->AsyncGet("short_get", ctx);
+  std::unique_lock<std::mutex> lock(mutex);
+  ASSERT_TRUE(
+      cv.wait_for(lock, std::chrono::seconds(10), [&] { return complete; }));
+}
 
 TEST(PutPayloadTest, SharesImmutableSegmentMetadata) {
   const std::string first = "hello";

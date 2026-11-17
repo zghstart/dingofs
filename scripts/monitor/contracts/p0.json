@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "phase": "P0",
+  "source_base_sha": "3cd6bfc1cb7683bcb5c1077fb7071de7b285cab4",
+  "endpoints": ["/brpc_metrics", "/vars", "client mount/.stats"],
+  "identity": {
+    "target_labels": ["cluster", "component", "node"],
+    "instance": "Prometheus target host:port",
+    "client_fs_id": "Verified mount-discovery fs_id",
+    "mds_cache_fs_id": "Only the numeric ID in registered MDS cache source names",
+    "forbidden_default_labels": ["path", "inode", "fd", "pid", "tid", "request_id", "trace_id", "error_message"]
+  },
+  "families": [
+    {
+      "source": "dingofs_fuse_op_<op>_{qps_total_count,error_num,inflight_num,lat_total_value}",
+      "semantic_types": ["counter", "counter", "gauge", "counter"],
+      "units": ["requests", "requests", "requests", "microseconds"],
+      "boundary": "Client Session/VFS user-space completion; latency covers successful completions",
+      "aggregation": "Use either all or concrete operations; do not combine both",
+      "code": ["src/common/metrics/client/client.h", "src/common/metrics/metric_guard.h"],
+      "verification": "Runtime samples and controlled read/write/lookup-error increments; process reset"
+    },
+    {
+      "source": "dingofs_vfs_<read|write>_{qps,bps,qps_total_count,bps_total_count}",
+      "semantic_types": ["gauge", "gauge", "counter", "counter"],
+      "units": ["requests/second", "bytes/second", "requests", "bytes"],
+      "boundary": "Successful VFS completions and actual accepted/returned bytes",
+      "code": ["src/common/metrics/client/client.h", "src/common/metrics/metric_guard.h"],
+      "verification": "20 reads and 20 writes, 168960 successful bytes in each direction"
+    },
+    {
+      "source": "dingofs_block_<read|write>_block_{qps_total_count,eps_total_count,bps_total_count,lat_total_value}",
+      "semantic_types": ["counter", "counter", "counter", "counter"],
+      "units": ["successful requests", "failed requests", "successful bytes", "successful microseconds"],
+      "boundary": "BlockAccesser wrapper completion; async callback once; not SDK wire attempts",
+      "code": ["src/common/blockaccess/block_accesser.cc"],
+      "verification": "Local-file backend regression: initially empty/nonempty GET buffers, failed GET, async short read and callback behavior"
+    },
+    {
+      "source": "block_{put_sync,put_async,get_sync,get_async,delete_async,batch_delete_async}_num",
+      "semantic_type": "gauge",
+      "unit": "inflight requests",
+      "boundary": "Increment on invocation; decrement on completion",
+      "aggregation": "Read directly; never rate or reinterpret as total requests",
+      "code": ["src/common/blockaccess/block_accesser.cc"]
+    },
+    {
+      "source": "dingofs_<fs_id>_<inode|partition|chunk>_cache_<hit|miss>_count",
+      "semantic_type": "counter",
+      "unit": "cache lookup outcomes",
+      "boundary": "Same metadata-cache lookup scope; inserted totals are not current entries",
+      "labels_added_by_whitelist": ["fs_id", "cache", "event"],
+      "code": ["src/mds/filesystem/inode.cc", "scripts/monitor/prometheus/prometheus.yml"]
+    },
+    {
+      "source": "dingofs_disk_cache_<disk>_{health_code,running_code}",
+      "semantic_type": "gauge",
+      "unit": "fixed state code",
+      "boundary": "Existing shard counters, read through the current nonblocking bvar registry",
+      "health_codes": {"normal": 0, "unstable": 1, "down": 2, "unknown": -1},
+      "running_codes": {"down": 0, "up": 1, "unknown": -1},
+      "derived": "Fixed one-hot dingofs_cache_{health,running}_state; missing/failing samples retain disk identity for 5m, then become absent",
+      "code": ["src/blockcache/common/metrics.cc", "scripts/monitor/prometheus/rules/cache-state.yml"],
+      "verification": "Expose/hide and state-transition unit tests; live stopped-cache unknown=1 and state sum=1"
+    },
+    {
+      "source": "dingofs_vfs_{inflight_warmup_tasks,inflight_warmup_blocks,warmup_*}",
+      "semantic_types": "Six gauges, two cumulative callback counters and two per-instance window latency recorders",
+      "units": "tasks/blocks, callbacks, microseconds",
+      "boundary": "Callback success/Exist does not prove cached data is readable",
+      "code": ["src/client/vfs/components/warmup_metric.h"],
+      "verification": "Actual names/types sampled; task final-result and latency histogram acceptance remains P1"
+    },
+    {
+      "source": "fs_quota_*",
+      "semantic_type": "gauge",
+      "unit": "bytes/inodes",
+      "boundary": "Per-MDS replica snapshot; P0 does not establish quota owner or freshness",
+      "aggregation": "Retain instance; do not sum replicas or divide by an unlimited/zero limit",
+      "code": ["src/mds/quota/quota.cc"]
+    },
+    {
+      "source": "dingofs_discovery_* and dingofs_expected_target_info",
+      "semantic_types": "Counters for errors, gauges for status/time/inventory",
+      "units": "attempts, Unix seconds, target counts",
+      "boundary": "Per-component last successful discovery and independent operator inventory",
+      "code": ["scripts/monitor/target_json.py"],
+      "verification": "Command/timeout/schema/business failures, valid protobuf empty response, retention, restart, atomic write failure, singleton lock and live target removal"
+    }
+  ],
+  "not_claimed": ["5.3 release acceptance", "cluster p99", "business result classification", "quota authority", "measured Data Flow", "S3/RADOS backend acceptance", "RDMA performance", "full-load performance regression"]
+}

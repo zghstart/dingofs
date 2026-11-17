@@ -1,0 +1,283 @@
+{
+  "uid": "dingofs-p0-mds",
+  "title": "DingoFS / MDS",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": [
+    "dingofs",
+    "observability",
+    "P0"
+  ],
+  "editable": true,
+  "refresh": "15s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Prometheus",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "DingoFS Prometheus",
+          "value": "dingofs-prometheus"
+        }
+      },
+      {
+        "name": "cluster",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
+        "query": "label_values(up, cluster)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
+        "query": "label_values(up{cluster=~\"$cluster\"}, instance)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      },
+      {
+        "name": "node",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
+        "query": "label_values(up{cluster=~\"$cluster\"}, node)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "P0 source and interpretation",
+      "options": {
+        "mode": "markdown",
+        "content": "**P0 / existing sources.** N/A means missing data or no traffic denominator. Scrape reachability is collection health. Quotas are per-instance snapshots. Cluster p99, business SLI and measured Data Flow require P1."
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "id": 1
+    },
+    {
+      "title": "Lookup framework QPS",
+      "type": "timeseries",
+      "description": "Framework transport results, not response.error business success.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "{__name__=~\".*dingofs_pb_mds_mdsservice_lookup_qps\",cluster=~\"$cluster\",instance=~\"$instance\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 2,
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "WorkerSet pending tasks",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "{__name__=~\"dingo_worker_set_.*pending.*\",cluster=~\"$cluster\",instance=~\"$instance\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}} {{__name__}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "Metadata cache hits and misses",
+      "type": "timeseries",
+      "description": "Separate cache and FS identities. Insert totals are not entries.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "rate({__name__=~\"dingofs_[0-9]+_(inode|partition|chunk)_cache_(hit|miss)_count\",cluster=~\"$cluster\",instance=~\"$instance\"}[$__rate_interval])",
+          "refId": "A",
+          "legendFormat": "{{instance}} fs={{fs_id}} {{cache}} {{event}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "title": "MDS resident memory",
+      "type": "timeseries",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "targets": [
+        {
+          "expr": "process_memory_resident{cluster=~\"$cluster\",instance=~\"$instance\",component=\"mds\"}",
+          "refId": "A",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "N/A"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 9
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "Overview",
+      "type": "link",
+      "url": "/d/dingofs-p0-overview",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Client",
+      "type": "link",
+      "url": "/d/dingofs-p0-client",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "MDS",
+      "type": "link",
+      "url": "/d/dingofs-p0-mds",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Cache",
+      "type": "link",
+      "url": "/d/dingofs-p0-cache",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Store",
+      "type": "link",
+      "url": "/d/dingofs-p0-store",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Capacity",
+      "type": "link",
+      "url": "/d/dingofs-p0-capacity",
+      "includeVars": true,
+      "keepTime": true
+    },
+    {
+      "title": "Host",
+      "type": "link",
+      "url": "/d/dingofs-p0-host",
+      "includeVars": true,
+      "keepTime": true
+    }
+  ]
+}

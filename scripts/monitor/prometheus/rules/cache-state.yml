@@ -1,0 +1,24 @@
+groups:
+  - name: dingofs-cache-state
+    rules:
+      - record: dingofs_cache_health_state
+        labels: {state: normal}
+        expr: ((label_replace({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") == bool 0) * on (cluster, instance) group_left() (up{job=~"client|mds|remotecache"} == bool 1)) or on (cluster, component, instance, node, fs_id, disk, job) (label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") * 0)
+      - record: dingofs_cache_health_state
+        labels: {state: unstable}
+        expr: ((label_replace({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") == bool 1) * on (cluster, instance) group_left() (up{job=~"client|mds|remotecache"} == bool 1)) or on (cluster, component, instance, node, fs_id, disk, job) (label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") * 0)
+      - record: dingofs_cache_health_state
+        labels: {state: down}
+        expr: ((label_replace({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") == bool 2) * on (cluster, instance) group_left() (up{job=~"client|mds|remotecache"} == bool 1)) or on (cluster, component, instance, node, fs_id, disk, job) (label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") * 0)
+      - record: dingofs_cache_health_state
+        labels: {state: unknown}
+        expr: ((label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") * 0 + 1) unless on (cluster, component, instance, node, fs_id, disk, job) (((label_replace({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") >= 0) and (label_replace({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") <= 2)) and on (cluster, instance) (up{job=~"client|mds|remotecache"} == 1))) or on (cluster, component, instance, node, fs_id, disk, job) (label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_health_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_health_code") * 0)
+      - record: dingofs_cache_running_state
+        labels: {state: down}
+        expr: ((label_replace({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") == bool 0) * on (cluster, instance) group_left() (up{job=~"client|mds|remotecache"} == bool 1)) or on (cluster, component, instance, node, fs_id, disk, job) (label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") * 0)
+      - record: dingofs_cache_running_state
+        labels: {state: up}
+        expr: ((label_replace({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") == bool 1) * on (cluster, instance) group_left() (up{job=~"client|mds|remotecache"} == bool 1)) or on (cluster, component, instance, node, fs_id, disk, job) (label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") * 0)
+      - record: dingofs_cache_running_state
+        labels: {state: unknown}
+        expr: ((label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") * 0 + 1) unless on (cluster, component, instance, node, fs_id, disk, job) (((label_replace({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") >= 0) and (label_replace({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}, "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") <= 1)) and on (cluster, instance) (up{job=~"client|mds|remotecache"} == 1))) or on (cluster, component, instance, node, fs_id, disk, job) (label_replace(last_over_time({__name__=~"dingofs_disk_cache_[0-9]+_running_code"}[5m]), "disk", "$1", "__name__", "dingofs_disk_cache_([0-9]+)_running_code") * 0)

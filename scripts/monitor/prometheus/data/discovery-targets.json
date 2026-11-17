@@ -1,0 +1,6 @@
+[
+  {
+    "targets": ["127.0.0.1:19100"],
+    "labels": {"cluster": "default", "component": "discovery", "node": "monitor"}
+  }
+]
